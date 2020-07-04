@@ -5,11 +5,11 @@ const boardRecords = {};
 const laneRecords = {};
 
 // Seed sample data
-for (let boardNum = 0; boardNum < 3; boardNum += 1) {
+for (let boardNum = 0; boardNum < 17; boardNum += 1) {
   const boardId = uuid4();
   const laneIds = [];
 
-  for (let laneNum = 0; laneNum <= 3; laneNum += 1) {
+  for (let laneNum = 0; laneNum <= 5; laneNum += 1) {
     const laneId = uuid4();
     const title = "Lane " + (laneNum + 1);
     const position = laneNum;
@@ -42,9 +42,11 @@ const INITIAL_STATE = {
 export const CREATE_BOARD = "CREATE_BOARD";
 export const UPDATE_BOARD = "UPDATE_BOARD";
 export const DELETE_BOARD = "DELETE_BOARD";
+
 export const CREATE_LANE = "CREATE_LANE";
 export const UPDATE_LANE = "UPDATE_LANE";
 export const DELETE_LANE = "DELETE_LANE";
+export const REARRANGE_LANES = "REARRANGE_LANES";
 
 const board = (state = INITIAL_STATE, action) => {
   switch (action.type) {
@@ -112,32 +114,21 @@ const board = (state = INITIAL_STATE, action) => {
       };
     }
 
-    case CREATE_LANE: {
+    case CREATE_LANE:
+    case UPDATE_LANE: {
       const { lane } = action.payload;
-      const { id, boardId } = lane;
-      const boardRecord = state.records[boardId];
+      const board = state.records[lane.boardId];
+      board["laneIds"] = [...board["laneIds"], lane.id];
 
       return {
         ...state,
         records: {
           ...state.records,
-          [boardId]: {
-            ...state.records[boardId],
-            laneIds: [...boardRecord["laneIds"], id]
+          [board.id]: {
+            ...state.records[board.id],
+            ...board
           }
         },
-        lanes: {
-          ...state.lanes,
-          [id]: { lane }
-        }
-      };
-    }
-
-    case UPDATE_LANE: {
-      const { lane } = action.payload;
-
-      return {
-        ...state,
         lanes: {
           ...state.lanes,
           [lane.id]: {
@@ -149,26 +140,37 @@ const board = (state = INITIAL_STATE, action) => {
     }
 
     case DELETE_LANE: {
-      const recordId = action.payload.id;
-      const lane = state.lanes[recordId];
-      const board = state.records[lane.boardId];
-      const boardLanes = board.laneIds.filter(id => id !== recordId);
-
-      const filteredLanes = convertToArray(state.lanes).filter(
-        lane => lane.id !== recordId
+      const id = action.payload.id;
+      const filteredLanes = convertToObject(
+        convertToArray(state.lanes).filter(lane => lane.id !== id)
       );
+
+      return {
+        ...state,
+        lanes: {
+          ...filteredLanes
+        }
+      };
+    }
+
+    case REARRANGE_LANES: {
+      const { lanes } = action.payload;
+      const rearrangedLanes = {};
+
+      lanes.forEach(lane => {
+        const { id, position } = lane;
+
+        rearrangedLanes[id] = {
+          ...state.records[id],
+          position
+        };
+      });
 
       return {
         ...state,
         records: {
           ...state.records,
-          [board.id]: {
-            ...board,
-            laneIds: boardLanes
-          }
-        },
-        lanes: {
-          ...filteredLanes
+          ...rearrangedLanes
         }
       };
     }

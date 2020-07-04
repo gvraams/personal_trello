@@ -1,76 +1,124 @@
 import React from "react";
+import { compose } from "redux";
 import { connect } from "react-redux";
 import { push } from "connected-react-router";
 import { Redirect } from "react-router-dom";
+import { withStyles } from "@material-ui/core/styles";
+import AddIcon from "@material-ui/icons/Add";
+
 import { convertToArray } from "../reducers/utils";
-import { withRouter } from "react-router-dom";
+import { Button, Tooltip } from "@material-ui/core";
+
+const styles = () => ({
+  gridStyle: {
+    display: "flex",
+    flexWrap: "wrap"
+  },
+  boardTitle: {
+    margin: 15,
+    color: "white",
+    fontSize: 25,
+    minWidth: 100,
+    minHeight: 100,
+    backgroundColor: "#7171EA",
+    lineHeight: 3,
+    textAlign: "center",
+    textTransform: "none"
+  },
+  iconStyle: {
+    borderRadius: 50
+  },
+  tooltip: {
+    backgroundColor: "black"
+  },
+  tooltipArrow: {
+    color: "black"
+  }
+});
 
 class BoardsList extends React.PureComponent {
   constructor(props) {
     super(props);
 
     this.state = {
-      redirectId: null
+      boardId: null
     };
   }
 
-  goToBoard = boardId => event => {
-    console.log("Got here", boardId, `boards/${boardId}`);
-    const { dispatchPush } = this.props;
-    dispatchPush(`boards/${boardId}`);
-  };
-
-  selectBoard = redirectId => event => {
-    console.log("Clicked board id ", redirectId);
+  selectBoard = boardId => event => {
     this.setState({
-      redirectId
+      boardId
     });
   };
 
   redirect = () => {
-    const { redirectId } = this.state;
-    if (!redirectId) return null;
-    console.log("Render redirect to board page");
-    return <Redirect to={"/boards/" + redirectId} />;
+    const { boardId } = this.state;
+    if (!boardId) return null;
+    return <Redirect to={`boards/${boardId}`} />;
   };
 
   render() {
-    const { boards = [] } = this.props;
+    const { classes, boards = [] } = this.props;
 
     return (
       <React.Fragment>
         {this.redirect()}
-        {boards.map(board => {
-          const { id, title } = board;
-
-          return (
-            <div
-              key={id}
-              onClick={this.selectBoard(id)}
-              style={{
-                display: "flex"
+        <div className={classes.gridStyle}>
+          {boards.map(board => {
+            const { id, title } = board;
+            return (
+              <Button
+                className={classes.boardTitle}
+                variant="contained"
+                color="primary"
+                onClick={this.selectBoard(id)}
+              >
+                {title}
+              </Button>
+            );
+          })}
+          <Tooltip
+            classes={{
+              tooltip: classes.tooltip,
+              arrow: classes.tooltipArrow
+            }}
+            arrow
+            title="Add Board"
+          >
+            <Button
+              className={classes.boardTitle}
+              variant="contained"
+              color="primary"
+              classes={{
+                root: classes.iconStyle
               }}
             >
-              {title}
-            </div>
-          );
-        })}
+              <AddIcon />
+            </Button>
+          </Tooltip>
+        </div>
       </React.Fragment>
     );
   }
 }
 
-const mapStateToProps = (state, props) => ({
-  boards: convertToArray(state.board.records)
-});
+const mapStateToProps = (state, props) => {
+  const boards = convertToArray(state.board.records);
+  return {
+    boards
+  };
+};
 
-const mapDispatchToProps = dispatch => ({
-  dispatchPush: location => dispatch(push(location))
-});
+const mapDispatchToProps = dispatch => {
+  return {
+    dispatchPush: location => dispatch(push(location))
+  };
+};
 
-export default withRouter(
+export default compose(
   connect(
     mapStateToProps,
     mapDispatchToProps
-  )(BoardsList)
-);
+  ),
+  withStyles(styles)
+)(BoardsList);
