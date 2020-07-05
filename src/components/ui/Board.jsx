@@ -1,15 +1,18 @@
 import React from "react";
 import { compose } from "redux";
 import { connect } from "react-redux";
-import { withRouter } from "react-router-dom";
+import { withRouter, Link } from "react-router-dom";
+import uuid4 from "uuid4";
 import { withStyles } from "@material-ui/core/styles";
 import { Typography, IconButton, Button, Tooltip } from "@material-ui/core";
 import AddIcon from "@material-ui/icons/Add";
 import EditIcon from "@material-ui/icons/Edit";
 import DeleteIcon from "@material-ui/icons/Delete";
 
+import CardInsideBoard from "./CardInsideBoard";
+import { createCard } from "../../actions/card";
 import { updateLane, deleteLane } from "../../actions/lane";
-import { convertToArray } from "../../reducers/utils";
+import { convertToArray, groupBy } from "../../reducers/utils";
 
 const styles = () => ({
   root: {
@@ -23,7 +26,6 @@ const styles = () => ({
     padding: 10,
     marginTop: 20,
     marginBottom: 10,
-    borderRadius: 10,
     backgroundImage: "linear-gradient(#9900FF, #AA00FF)",
     backgroundColor: "blueviolet"
   },
@@ -36,7 +38,7 @@ const styles = () => ({
     borderRadius: 10,
     display: "inline-flex",
     padding: 10,
-    minHeight: 600,
+    minHeight: 720,
     height: "auto",
     overflow: "hidden",
     backgroundImage: "linear-gradient(#6600FF, #AA00FF)",
@@ -70,15 +72,18 @@ const styles = () => ({
     height: "91%",
     marginRight: 20,
     borderRadius: 20,
-    opacity: 0.7
+    opacity: 0.7,
+    maxHeight: 720,
+    overflowY: "auto"
   },
   laneTitle: {
     fontSize: 17,
     lineHeight: 3
   },
   addCardButton: {
-    marginTop: 15,
-    marginLeft: 15
+    marginTop: 30,
+    marginLeft: 15,
+    opactiy: 1.0
   },
   iconStyle: {
     color: "#f0f0f0"
@@ -92,11 +97,7 @@ const styles = () => ({
 });
 
 class Board extends React.PureComponent {
-  updateLane = lane => event => {
-    console.log("Update lane triggered", lane);
-    // const { dispatchUpdateLane } = this.props;
-    // dispatchUpdateLane(lane);
-  };
+  updateLane = lane => event => {};
 
   deleteLane = lane => event => {
     const { dispatchDeleteLane } = this.props;
@@ -105,26 +106,96 @@ class Board extends React.PureComponent {
     });
   };
 
-  render() {
-    const { board, lanes = [], cards = [], classes = {} } = this.props;
+  handleAddCard = lane => event => {
+    const { id: laneId, boardId } = lane;
+    const { cards = [], dispatchCreateCard } = this.props;
+    const position = cards.filter(card => card.laneId === laneId).length;
+    const title = "Card " + (position + 1);
+    const description =
+      "Neque porro quisquam est qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit. Neque porro quisquam est qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit. Neque porro quisquam est qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit. Neque porro quisquam est qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit";
 
-    const tooltipClasses = {
-      arrow: {
-        color: "black"
-      },
-      tooltip: {
-        backgroundColor: "black"
+    const cardParams = {
+      card: {
+        id: uuid4(),
+        title,
+        description,
+        laneId,
+        boardId,
+        position
       }
     };
 
+    dispatchCreateCard(cardParams);
+  };
+
+  renderCardsForLane = laneId => {
+    const { cardsByLane } = this.props;
+    const cards = cardsByLane[laneId];
+    if (!cards) return null;
+
+    return (
+      <div onDrop={this.drop()} onDragOver={this.allowDrop()}>
+        {cards.map(card => (
+          <CardInsideBoard
+            id={card.id + "_header"}
+            draggable
+            key={card.id}
+            card={card}
+            dragStartHandler={this.drag()}
+          />
+        ))}
+      </div>
+    );
+  };
+
+  allowDrop = () => event => {
+    console.log("Allow drop");
+    event.preventDefault();
+  };
+
+  drag = () => event => {
+    console.log("Drag");
+    event.dataTransfer.setData("text", event.target.id);
+  };
+
+  drop = () => event => {
+    console.log("Drop");
+    event.preventDefault();
+    const data = event.dataTransfer.getData("text");
+    event.target.appendChild(document.getElementById(data));
+  };
+
+  render() {
+    const { board, lanes = [], classes = {} } = this.props;
+
+    if (!board) {
+      return (
+        <Link to="/">
+          <Button color="secondary">Home</Button>
+        </Link>
+      );
+    }
+
     return (
       <div className={classes.root}>
-        <span className={classes.boardTitle}>{board.title}</span>
+        <div style={{ display: "flex" }}>
+          <Link to="/">
+            <Button color="default">Home</Button>
+          </Link>
+          <Link to={"/boards/" + board.id}>
+            <Button color="default">{board.title}</Button>
+          </Link>
+        </div>
         <div style={{ display: "flex" }}>
           {lanes.length > 0 && (
             <ul className={classes.laneOuterUl}>
               {lanes.map(lane => (
-                <li key={lane.id} className={classes.laneListItem}>
+                <li
+                  // draggable
+                  id={lane.id + "_header"}
+                  key={lane.id}
+                  className={classes.laneListItem}
+                >
                   <div className={classes.laneHeaderDiv}>
                     <Typography className={classes.laneTitle}>
                       {lane.title}
@@ -143,7 +214,7 @@ class Board extends React.PureComponent {
                             root: classes.iconStyle
                           }}
                           aria-label="add"
-                          onClick={this.updateLane(lane)}
+                          onClick={this.handleAddCard(lane)}
                         >
                           <AddIcon />
                         </IconButton>
@@ -189,11 +260,12 @@ class Board extends React.PureComponent {
                     </div>
                   </div>
                   <div className={classes.cardsArea}>
-                    {cards && null}
+                    {this.renderCardsForLane(lane.id)}
                     <Button
                       className={classes.addCardButton}
                       variant="contained"
                       color="primary"
+                      onClick={this.handleAddCard(lane)}
                     >
                       Add Card
                     </Button>
@@ -235,13 +307,22 @@ const mapStateToProps = (state, props) => {
     lane => lane.boardId === boardId
   );
 
+  const cards = convertToArray(state.card.records).filter(
+    card => card.boardId === boardId
+  );
+
+  const cardsByLane = groupBy(cards, "laneId");
+
   return {
     board,
-    lanes
+    lanes,
+    cards,
+    cardsByLane
   };
 };
 
 const mapDispatchToProps = dispatch => ({
+  dispatchCreateCard: payload => dispatch(createCard(payload)),
   dispatchUpdateLane: payload => dispatch(updateLane(payload)),
   dispatchDeleteLane: payload => dispatch(deleteLane(payload))
 });

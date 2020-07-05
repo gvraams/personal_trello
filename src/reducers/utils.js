@@ -10,4 +10,10 @@ const convertToObject = (array, key = "id") => {
   return obj;
 };
 
-export { convertToArray, convertToObject };
+const groupBy = (inputArray, key) =>
+  inputArray.reduce((accumulator, entry) => {
+    (accumulator[entry[key]] = accumulator[entry[key]] || []).push(entry);
+    return accumulator;
+  }, {});
+
+export { convertToArray, convertToObject, groupBy };

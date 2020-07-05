@@ -61,13 +61,14 @@ class BoardsList extends React.PureComponent {
     const { classes, boards = [] } = this.props;
 
     return (
-      <React.Fragment>
+      <div>
         {this.redirect()}
         <div className={classes.gridStyle}>
           {boards.map(board => {
             const { id, title } = board;
             return (
               <Button
+                key={id}
                 className={classes.boardTitle}
                 variant="contained"
                 color="primary"
@@ -97,7 +98,7 @@ class BoardsList extends React.PureComponent {
             </Button>
           </Tooltip>
         </div>
-      </React.Fragment>
+      </div>
     );
   }
 }
